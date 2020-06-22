@@ -19,8 +19,6 @@ services:
         mode: ingress
     networks:
       - ebs-net
-    environment: #Environment variables
-      VAR1: "Sample Var"
     volumes:  
       - ${GOBII_DATA_PATH}:/data
       - ${GOBII_DATA_PATH}:/ndd_data
@@ -33,7 +31,6 @@ services:
     command: >
       bash -c "
       echo Starting gobii_web...;
-      apt update && apt install vim -y;
       sleep 30;
       cp /data/gobii_bundle/config/confidentiality.txt /data/gobii_bundle/crops/dev/notices;
       chown -R gadm:gobii /data/gobii_bundle;
@@ -51,13 +48,6 @@ services:
       mode: replicated
       replicas: 1
       endpoint_mode: vip
-      #restrict where swarm places this service
-      placement:
-        constraints:
-          - node.role == manager
-          - node.labels.type == gobii_server
-      #   preferences:
-      #     - spread: node.labels.zone
       labels:
         org.ebs.service.description: "This is the GOBii Web Node"
       restart_policy:
@@ -65,11 +55,11 @@ services:
         delay: 5s
         max_attempts: 3
         window: 180s #How long to wait before deciding if a restart has succeeded, specified as a duration (default: decide immediately).
-    # healthcheck:
-    #   test: "wget --quiet --spider http://localhost:8080/ || exit 1"
-    #   interval: 10s
-    #   timeout: 30s
-    #   retries: 3
+    healthcheck:
+      test: "wget --quiet --spider http://localhost:8080/ || exit 1"
+      interval: 10s
+      timeout: 30s
+      retries: 3
   gobii-db:
     image: ${GOBII_DB_IMAGE_PATH}:${GOBII_TAG}
     ports:
@@ -114,10 +104,6 @@ services:
       mode: replicated
       replicas: 1
       endpoint_mode: vip
-      placement:
-        constraints:
-          - node.role == manager
-          - node.labels.type == gobii_server
       labels:
         org.ebs.service.description: "This is the GOBii DB Node"
       restart_policy:
@@ -125,7 +111,7 @@ services:
         delay: 5s
         max_attempts: 3
         window: 180s
-  gobii-compute:
+  gobii-process:
     image: ${GOBII_COMPUTE_IMAGE_PATH}:${GOBII_TAG}
     ports:
       - target: 22
@@ -165,7 +151,39 @@ services:
         delay: 5s
         max_attempts: 3
         window: 180s
-
+  gobii-timescope:
+    image: ${GOBII_TIMESCOPE_IMAGE_PATH}:${GOBII_TAG}
+    #container_name: gobii-web-node #swarm manages the naming, so you are not allowed to name containers explicitly
+    ports:
+      - target: 8080
+        published: 8081
+        protocol: tcp
+        mode: ingress
+    networks:
+      - ebs-net
+    environment: #Environment variables
+      VAR1: "Sample Var"
+    depends_on:
+      - "gobii-db"
+    # stdin_open: true
+    tty: true
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: vip
+      #restrict where swarm places this service
+      labels:
+        org.ebs.service.description: "This is the GOBii Timescope Node"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 180s #How long to wait before deciding if a restart has succeeded, specified as a duration (default: decide immediately).
+    healthcheck:
+      test: "wget --quiet --spider http://localhost:8080/ || exit 1"
+      interval: 10s
+      timeout: 30s
+      retries: 3
 volumes:
   #useful for compose but not swarm
   # app_data:
