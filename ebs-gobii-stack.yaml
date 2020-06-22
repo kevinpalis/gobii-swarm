@@ -1,0 +1,180 @@
+# This is the main EBS-GOBii stack file.
+# This is written for docker v19 and above. Although it may work for docker versions below 19, no testing has been done for those versions.
+# @author Kevin Palis <kdp44@cornell.edu>
+version: '3.8'
+networks:
+  ebs-net:
+    attachable: true
+services:
+  #+------------------------+
+  ## GOBii Services
+  #+------------------------+
+  gobii-web:
+    image: ${GOBII_WEB_IMAGE_PATH}:${GOBII_TAG}
+    #container_name: gobii-web-node #swarm manages the naming, so you are not allowed to name containers explicitly
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: ingress
+    networks:
+      - ebs-net
+    environment: #Environment variables
+      VAR1: "Sample Var"
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
+      - ${GOBII_DATA_PATH}:/ndd_data
+      - ./gobii-web.properties:/var/gobii-web.properties
+    depends_on:
+      - "gobii-db"
+    # stdin_open: true
+    tty: true
+    entrypoint: /usr/bin/env
+    command: >
+      bash -c "
+      echo Starting gobii_web...;
+      apt update && apt install vim -y;
+      sleep 30;
+      cp /data/gobii_bundle/config/confidentiality.txt /data/gobii_bundle/crops/dev/notices;
+      chown -R gadm:gobii /data/gobii_bundle;
+      echo Starting gobiiconfig_wrapper...;
+      bash /data/gobii_bundle/config/gobiiconfig_wrapper.sh /var/gobii-web.properties;
+      runuser -l gadm -c '/usr/local/tomcat/bin/startup.sh';
+      source /var/gobii-web.properties; 
+      pwd;
+      echo jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1;
+      cd /data/liquibase;
+      java -jar /data/liquibase/bin/liquibase.jar --username=$$DB_USERNAME --password=$$DB_PASS --url=jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1 --driver=org.postgresql.Driver --classpath=drivers/postgresql-9.4.1209.jar --changeLogFile=changelogs/db.changelog-master.xml --contexts=$$LIQUIBASE_CROP1_CONTEXTS update;
+      bash"
+    #runuser -l gadm -c "echo Starting gobii_web... && sleep 60 && usr/local/tomcat/bin/startup.sh && bash"
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: vip
+      #restrict where swarm places this service
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.type == gobii_server
+      #   preferences:
+      #     - spread: node.labels.zone
+      labels:
+        org.ebs.service.description: "This is the GOBii Web Node"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 180s #How long to wait before deciding if a restart has succeeded, specified as a duration (default: decide immediately).
+    # healthcheck:
+    #   test: "wget --quiet --spider http://localhost:8080/ || exit 1"
+    #   interval: 10s
+    #   timeout: 30s
+    #   retries: 3
+  gobii-db:
+    image: ${GOBII_DB_IMAGE_PATH}:${GOBII_TAG}
+    ports:
+      - target: 5432
+        published: 5433
+        protocol: tcp
+        mode: ingress
+    networks:
+      - ebs-net
+    environment:
+      - gobiiuid=${GOBII_UID}
+      - gobiigid=${GOBII_GID}
+      - gobiiuserpassword=${DOCKER_GOBII_ADMIN_PASSWORD}
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
+      - ${GOBII_DATA_PATH}:/ndd_data
+      - gobiipostgresetcubuntu:/etc/postgresql
+      - gobiipostgreslogubuntu:/var/log/postgresql
+      - gobiipostgreslibubuntu:/var/lib/postgresql
+    entrypoint: /usr/bin/env
+    command: >
+      bash -c "
+      echo Starting gobii_db...;
+      apt update && apt install vim -y;
+      cp -R /var/gobii_bundle /data/gobii_bundle;
+      cp -R /var/liquibase /data/liquibase;
+      chown -R gadm:gobii /data/gobii_bundle;
+      chown -R gadm:gobii /data/liquibase;
+      /root/config.sh"
+    #this one turns interactive mode on (equal to -i)
+    # stdin_open: true
+    #allocates a pseudo-tty (equal to -t)
+    tty: true
+    #checks if postgres is running and the schema was created
+    healthcheck:
+      test: runuser -l postgres -c "psql -d gobii_dev -c 'select value from gobiiprop;' || exit 1"
+      interval: 1m30s
+      timeout: 20s
+      retries: 3
+    #these don't work with docker-compose up and are simply ignored, but keeping the settings here for when we get to explore swarm
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: vip
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.type == gobii_server
+      labels:
+        org.ebs.service.description: "This is the GOBii DB Node"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 180s
+  gobii-compute:
+    image: ${GOBII_COMPUTE_IMAGE_PATH}:${GOBII_TAG}
+    ports:
+      - target: 22
+        published: 2222
+        protocol: tcp
+        mode: ingress
+    networks:
+      - ebs-net
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
+      - ${GOBII_DATA_PATH}:/ndd_data
+      - ./gobii-web.properties:/var/gobii-web.properties
+    depends_on:
+      - "gobii-web"
+    # stdin_open: true
+    tty: true
+    entrypoint: /usr/bin/env
+    command: >
+      bash -c "
+      echo Starting gobii_compute...;
+      apt update && apt install vim -y;
+      crontab -u gadm /data/ebs-swarm/tmpcron;
+      bash"
+      # edit: runuser -l gadm -c 'crontab -r; bash addCron.sh /data/gobii_bundle $$DOCKER_CROP1_NAME $DOCKER_CRON_INTERVAL $$DOCKER_CRON_FILE_AGE;';
+    deploy:
+      mode: replicated
+      replicas: 1
+      endpoint_mode: vip
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.type == gobii_server
+      labels:
+        org.ebs.service.description: "This is the GOBii Compute Node"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 180s
+
+volumes:
+  #useful for compose but not swarm
+  # app_data:
+  #   external: false
+  # ndd_data:
+  #   external: false
+  gobiipostgresetcubuntu:
+    external: false
+  gobiipostgreslogubuntu:
+    external: false
+  gobiipostgreslibubuntu:
+    external: false
