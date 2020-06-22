@@ -6,4 +6,4 @@
 #-----------------------------------------------------------------------------#
 
 #undeploy the stack
-docker stack rm ebs-stack
+docker stack rm ebs-gobii-stack
