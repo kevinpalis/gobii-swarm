@@ -32,7 +32,6 @@ services:
       bash -c "
       echo Starting gobii_web...;
       sleep 30;
-      cp /data/gobii_bundle/config/confidentiality.txt /data/gobii_bundle/crops/dev/notices;
       chown -R gadm:gobii /data/gobii_bundle;
       echo Starting gobiiconfig_wrapper...;
       bash /data/gobii_bundle/config/gobiiconfig_wrapper.sh /var/gobii-web.properties;
@@ -43,7 +42,6 @@ services:
       cd /data/liquibase;
       java -jar /data/liquibase/bin/liquibase.jar --username=$$DB_USERNAME --password=$$DB_PASS --url=jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1 --driver=org.postgresql.Driver --classpath=drivers/postgresql-9.4.1209.jar --changeLogFile=changelogs/db.changelog-master.xml --contexts=$$LIQUIBASE_CROP1_CONTEXTS update;
       bash"
-    #runuser -l gadm -c "echo Starting gobii_web... && sleep 60 && usr/local/tomcat/bin/startup.sh && bash"
     deploy:
       mode: replicated
       replicas: 1
@@ -112,7 +110,7 @@ services:
         max_attempts: 3
         window: 180s
   gobii-process:
-    image: ${GOBII_COMPUTE_IMAGE_PATH}:${GOBII_TAG}
+    image: ${GOBII_PROCESS_IMAGE_PATH}:${GOBII_TAG}
     ports:
       - target: 22
         published: 2222
@@ -140,10 +138,6 @@ services:
       mode: replicated
       replicas: 1
       endpoint_mode: vip
-      placement:
-        constraints:
-          - node.role == manager
-          - node.labels.type == gobii_server
       labels:
         org.ebs.service.description: "This is the GOBii Compute Node"
       restart_policy:
