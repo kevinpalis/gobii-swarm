@@ -123,7 +123,7 @@ services:
       - ${GOBII_NDD_PATH}:/ndd_data
       - ./gobii-web.properties:/var/gobii-web.properties
     depends_on:
-      - "gobii-web"
+      - "gobii-db"
     # stdin_open: true
     tty: true
     entrypoint: /usr/bin/env
