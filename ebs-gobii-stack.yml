@@ -22,7 +22,7 @@ services:
     volumes:  
       - ${GOBII_DATA_PATH}:/data
       - ${GOBII_NDD_PATH}:/ndd_data
-      - ./gobii-web.properties:/var/gobii-web.properties
+      - ${GOBII_DATA_PATH}/gobii-web.properties:/var/gobii-web.properties
     depends_on:
       - "gobii-db"
     # stdin_open: true
@@ -121,7 +121,6 @@ services:
     volumes:  
       - ${GOBII_DATA_PATH}:/data
       - ${GOBII_NDD_PATH}:/ndd_data
-      - ./gobii-web.properties:/var/gobii-web.properties
     depends_on:
       - "gobii-db"
     # stdin_open: true
