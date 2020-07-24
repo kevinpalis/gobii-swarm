@@ -82,8 +82,8 @@ services:
       bash -c "
       echo Starting gobii_db...;
       apt update && apt install vim -y;
-      cp -R /var/gobii_bundle /data/gobii_bundle;
-      cp -R /var/liquibase /data/liquibase;
+      cp -RT /var/gobii_bundle /data/gobii_bundle;
+      cp -RT /var/liquibase /data/liquibase;
       chown -R gadm:gobii /data/gobii_bundle;
       chown -R gadm:gobii /data/liquibase;
       /root/config.sh"
