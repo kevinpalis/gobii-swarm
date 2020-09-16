@@ -5,5 +5,9 @@
 #@author: Kevin Palis <kdp44@cornell.edu>
 #-----------------------------------------------------------------------------#
 
-#undeploy the stack
+#undeploy the EBS-GOBii stack
 docker stack rm ebs-gobii-stack
+
+
+#undeploy the maintenance stack
+docker stack rm ebs-maintenance-stack
