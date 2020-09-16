@@ -9,54 +9,6 @@ services:
   #+------------------------+
   ## GOBii Services
   #+------------------------+
-  gobii-web:
-    image: ${GOBII_WEB_IMAGE_PATH}:${GOBII_TAG}
-    #container_name: gobii-web-node #swarm manages the naming, so you are not allowed to name containers explicitly
-    ports:
-      - target: 8080
-        published: 8080
-        protocol: tcp
-        mode: ingress
-    networks:
-      - ebs-net
-    volumes:  
-      - ${GOBII_DATA_PATH}:/data
-      - ${GOBII_DATA_PATH}/gobii-web.properties:/var/gobii-web.properties
-    depends_on:
-      - "gobii-db"
-    # stdin_open: true
-    tty: true
-    entrypoint: /usr/bin/env
-    command: >
-      bash -c "
-      echo Starting gobii_web...;
-      sleep 30;
-      chown -R gadm:gobii /data/gobii_bundle;
-      echo Starting gobiiconfig_wrapper...;
-      bash /data/gobii_bundle/config/gobiiconfig_wrapper.sh /var/gobii-web.properties;
-      runuser -l gadm -c '/usr/local/tomcat/bin/startup.sh';
-      source /var/gobii-web.properties; 
-      pwd;
-      echo jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1;
-      cd /data/liquibase;
-      java -jar /data/liquibase/bin/liquibase.jar --username=$$DB_USERNAME --password=$$DB_PASS --url=jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1 --driver=org.postgresql.Driver --classpath=drivers/postgresql-9.4.1209.jar --changeLogFile=changelogs/db.changelog-master.xml --contexts=$$LIQUIBASE_CROP1_CONTEXTS update;
-      bash"
-    deploy:
-      mode: replicated
-      replicas: 1
-      endpoint_mode: vip
-      labels:
-        org.ebs.service.description: "This is the GOBii Web Node"
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 180s #How long to wait before deciding if a restart has succeeded, specified as a duration (default: decide immediately).
-    healthcheck:
-      test: "wget --quiet --spider http://localhost:8080/ || exit 1"
-      interval: 10s
-      timeout: 30s
-      retries: 3
   gobii-db:
     image: ${GOBII_DB_IMAGE_PATH}:${GOBII_TAG}
     ports:
@@ -79,11 +31,11 @@ services:
     command: >
       bash -c "
       echo Starting gobii_db...;
-      apt update && apt install vim -y;
-      cp -RT /var/gobii_bundle /data/gobii_bundle;
       cp -RT /var/liquibase /data/liquibase;
-      chown -R gadm:gobii /data/gobii_bundle;
       chown -R gadm:gobii /data/liquibase;
+
+      cd /data/liquibase;
+      java -jar /data/liquibase/bin/liquibase.jar --username=$$DB_USERNAME --password=$$DB_PASS --url=jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1 --driver=org.postgresql.Driver --classpath=drivers/postgresql-42.2.10.jar --changeLogFile=changelogs/db.changelog-master.xml --contexts=$$LIQUIBASE_CROP1_CONTEXTS update;
       /root/config.sh"
     #this one turns interactive mode on (equal to -i)
     # stdin_open: true
@@ -128,12 +80,14 @@ services:
     entrypoint: /usr/bin/env
     command: >
       bash -c "
-      echo Starting gobii_compute...;
-      apt update && apt install vim -y;
-      crontab -u gadm /data/ebs-swarm/tmpcron;
+      echo Starting gobii_process...;
+      cp -RT /var/gobii_bundle /data/gobii_bundle;
+      chown -R gadm:gobii /data/gobii_bundle;
       bash"
-      # edit: runuser -l gadm -c 'crontab -r; bash addCron.sh /data/gobii_bundle $$DOCKER_CROP1_NAME $DOCKER_CRON_INTERVAL $$DOCKER_CRON_FILE_AGE;';
     deploy:
+      placement:
+        constraints:
+          - node.labels.type == process_server
       mode: replicated
       replicas: 1
       endpoint_mode: vip
