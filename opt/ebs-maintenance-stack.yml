@@ -1,0 +1,27 @@
+# This is the maintenance stack file. This contains utility services for managing a docker swarm stack.
+# This is written for docker v19 and above. Although it may work for docker versions below 19, no testing has been done for those versions.
+# @author Kevin Palis <kdp44@cornell.edu>
+version: '3.8'
+networks:
+  ebs-net:
+    attachable: true
+services:
+  #+------------------------+
+  ## Maintenance Services
+  #+------------------------+
+  node-cleaner:
+    image: docker
+    networks:
+      - ebs-net
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sh -c "while true; do docker image prune -af; sleep 86400; done"
+    deploy:
+      mode: global
+      labels:
+        org.ebs.service.description: "This is the node cleaner service. Prunes everyday."
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 180s
