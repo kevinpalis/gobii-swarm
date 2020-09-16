@@ -99,6 +99,9 @@ services:
       retries: 3
     #these don't work with docker-compose up and are simply ignored, but keeping the settings here for when we get to explore swarm
     deploy:
+      placement:
+        constraints:
+          - node.labels.type == db_server
       mode: replicated
       replicas: 1
       endpoint_mode: vip
