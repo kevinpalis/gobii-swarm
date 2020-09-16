@@ -21,7 +21,6 @@ services:
       - ebs-net
     volumes:  
       - ${GOBII_DATA_PATH}:/data
-      - ${GOBII_NDD_PATH}:/ndd_data
       - ${GOBII_DATA_PATH}/gobii-web.properties:/var/gobii-web.properties
     depends_on:
       - "gobii-db"
@@ -73,7 +72,6 @@ services:
       - gobiiuserpassword=${DOCKER_GOBII_ADMIN_PASSWORD}
     volumes:  
       - ${GOBII_DATA_PATH}:/data
-      - ${GOBII_NDD_PATH}:/ndd_data
       - gobiipostgresetcubuntu:/etc/postgresql
       - gobiipostgreslogubuntu:/var/log/postgresql
       - gobiipostgreslibubuntu:/var/lib/postgresql
@@ -123,7 +121,6 @@ services:
       - ebs-net
     volumes:  
       - ${GOBII_DATA_PATH}:/data
-      - ${GOBII_NDD_PATH}:/ndd_data
     depends_on:
       - "gobii-db"
     # stdin_open: true
