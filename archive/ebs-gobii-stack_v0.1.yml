@@ -1,86 +1,76 @@
 # This is the main EBS-GOBii stack file.
 # This is written for docker v19 and above. Although it may work for docker versions below 19, no testing has been done for those versions.
 # @author Kevin Palis <kdp44@cornell.edu>
-# @author John Palis <johnv.palis@gmail.com>
-
 version: '3.8'
-
 networks:
-  ebs_network:
-    #driver: overlay #uncomment if in swarm mode, for compose, this will cause errors as overlay requires swarm
-    name: ${EBS_DOCKER_NETWORK_NAME}
+  ebs-net:
     attachable: true
-
 services:
   #+------------------------+
   ## GOBii Services
   #+------------------------+
-  # DB
   gobii-db:
-    image: ${GOBII_DB_IMAGE}:${GOBII_DB_IMAGE_TAG}
+    image: ${GOBII_DB_IMAGE_PATH}:${GOBII_TAG}
     ports:
-      - target: ${GOBII_DB_TARGET_PORT}
-        published: ${GOBII_DB_PUBLISHED_PORT}
+      - target: 5432
+        published: 5433
         protocol: tcp
         mode: ingress
+    networks:
+      - ebs-net
     environment:
-      - postgres_local_auth_method=${POSTGRES_LOCAL_AUTH_METHOD}
-      - postgres_host_auth_method=${POSTGRES_HOST_AUTH_METHOD}
-      - postgres_listen_address=${POSTGRES_LISTEN_ADDRESS}
-      - db_user=${GOBII_DB_USER}
-      - db_pass=${GOBII_DB_PASSWORD}
-      - db_name=${GOBII_DB_NAME}
-      - pg_driver=${PG_DRIVER}
-      - lq_contexts=${LIQUIBASE_CONTEXTS}
-      - lq_labels=${LIQUIBASE_LABELS}
-      - default_statistigobii_target=${DEFAULT_STATISTIGOBII_TARGET}
-      - random_page_cost=${RANDOM_PAGE_COST}
-      - effective_cache_size=${EFFECTIVE_CACHE_SIZE}
-      - max_parallel_workers_per_gather=${MAX_PARALLEL_WORKERS_PER_GATHER}
-      - max_parallel_workers=${MAX_PARALLEL_WORKERS}
-      - os_user=${OS_USER}
-      - os_pass=${OS_PASS}
-      - os_group=${OS_GROUP}
-    networks: 
-      - ${EBS_DOCKER_NETWORK_NAME}
-    volumes: 
-      - ${POSTGRES_ETC}:/etc/postgresql
-      - ${POSTGRES_LOG}:/var/log/postgresql
-      - ${POSTGRES_LIB}:/var/lib/postgresql
+      - gobiiuid=${GOBII_UID}
+      - gobiigid=${GOBII_GID}
+      - gobiiuserpassword=${DOCKER_GOBII_ADMIN_PASSWORD}
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
+      - gobiipostgresetcubuntu:/etc/postgresql
+      - gobiipostgreslogubuntu:/var/log/postgresql
+      - gobiipostgreslibubuntu:/var/lib/postgresql
+    entrypoint: /usr/bin/env
+    command: >
+      bash -c "
+      echo Starting gobii_db...;
+      cp -RT /var/liquibase /data/liquibase;
+      chown -R gadm:gobii /data/liquibase;
+
+      cd /data/liquibase;
+      java -jar /data/liquibase/bin/liquibase.jar --username=$$DB_USERNAME --password=$$DB_PASS --url=jdbc:postgresql://$$DOCKER_DB_HOST:$$DOCKER_DB_PORT/$$DB_NAME_CROP1 --driver=org.postgresql.Driver --classpath=drivers/postgresql-42.2.10.jar --changeLogFile=changelogs/db.changelog-master.xml --contexts=$$LIQUIBASE_CROP1_CONTEXTS update;
+      /root/config.sh"
+    #this one turns interactive mode on (equal to -i)
+    # stdin_open: true
     #allocates a pseudo-tty (equal to -t)
     tty: true
-    #we can modify the healthcheck to check the actual BA schema later on (like in gobiiprop)
+    #checks if postgres is running and the schema was created
     healthcheck:
-      test: pg_isready -U postgres || exit 1
-      interval: 50s
+      test: runuser -l postgres -c "psql -d gobii_dev -c 'select value from gobiiprop;' || exit 1"
+      interval: 1m30s
       timeout: 20s
       retries: 3
-    #these are simply ignored by docker if ran in compose - but are important to swarm mode!
+    #these don't work with docker-compose up and are simply ignored, but keeping the settings here for when we get to explore swarm
     deploy:
       placement:
         constraints:
-          - node.labels.type == gobii_db_node
+          - node.labels.type == db_server
       mode: replicated
       replicas: 1
       endpoint_mode: vip
       labels:
-        org.ebs.service.description: "This is the GOBII DB Node"
+        org.ebs.service.description: "This is the GOBii DB Node"
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
         window: 180s
-
-  #PROCESS
   gobii-process:
-    image: ${GOBII_PROCESS_IMAGE}:${GOBII_PROCESS_IMAGE_TAG}
+    image: ${GOBII_PROCESS_IMAGE_PATH}:${GOBII_TAG}
     ports:
       - target: 22
         published: 2222
         protocol: tcp
         mode: ingress
-    networks: 
-      - ${EBS_DOCKER_NETWORK_NAME}
+    networks:
+      - ebs-net
     volumes:  
       - ${GOBII_DATA_PATH}:/data
     depends_on:
@@ -91,6 +81,8 @@ services:
     command: >
       bash -c "
       echo Starting gobii_process...;
+      cp -RT /var/gobii_bundle /data/gobii_bundle;
+      chown -R gadm:gobii /data/gobii_bundle;
       bash"
     deploy:
       placement:
@@ -100,21 +92,22 @@ services:
       replicas: 1
       endpoint_mode: vip
       labels:
-        org.ebs.service.description: "This is the GOBii Process Node"
+        org.ebs.service.description: "This is the GOBii Compute Node"
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
         window: 180s
   gobii-timescope:
-    image: ${GOBII_TIMESCOPE_IMAGE}:${GOBII_TIMESCOPE_IMAGE_TAG}
+    image: ${GOBII_TIMESCOPE_IMAGE_PATH}:${GOBII_TAG}
+    #container_name: gobii-web-node #swarm manages the naming, so you are not allowed to name containers explicitly
     ports:
       - target: 8080
         published: 8081
         protocol: tcp
         mode: ingress
-    networks: 
-      - ${EBS_DOCKER_NETWORK_NAME}
+    networks:
+      - ebs-net
     environment: #Environment variables
       VAR1: "Sample Var"
     depends_on:
@@ -139,10 +132,14 @@ services:
       timeout: 30s
       retries: 3
 volumes:
-  #when using local DB volumes - comment out if using mounted host volumes
-  gobii_postgres_etc:
+  #useful for compose but not swarm
+  # app_data:
+  #   external: false
+  # ndd_data:
+  #   external: false
+  gobiipostgresetcubuntu:
     external: false
-  gobii_postgres_log:
+  gobiipostgreslogubuntu:
     external: false
-  gobii_postgres_lib:
+  gobiipostgreslibubuntu:
     external: false
