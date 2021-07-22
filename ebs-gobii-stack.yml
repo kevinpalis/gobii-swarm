@@ -79,6 +79,8 @@ services:
         mode: ingress
     networks: 
       - ${EBS_DOCKER_NETWORK_NAME}
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
     depends_on:
       - "gobii-db"
     # stdin_open: true

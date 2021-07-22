@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------------#
 
 #Deploy the EBS-GOBii stack (currently, there is no way to pass the env file directly)
-env $(cat .env | grep ^[A-Z] | xargs) docker stack deploy --with-registry-auth --compose-file ebs-gobii-stack.yml ebs-gobii-stack
+env $(cat .env | grep ^[A-Z] | xargs) docker stack deploy --with-registry-auth -c ebs-gobii-stack.yml ebs-gobii-stack
 
 #Deploy the maintenance stack (I wish everything's this simple)
-docker stack deploy --with-registry-auth --compose-file opt/ebs-maintenance-stack.yml ebs-maintenance-stack
+docker stack deploy --with-registry-auth -c opt/ebs-maintenance-stack.yml ebs-maintenance-stack
