@@ -10,7 +10,6 @@ networks:
     #driver: overlay #uncomment if in swarm mode, for compose, this will cause errors as overlay requires swarm
     name: ${EBS_DOCKER_NETWORK_NAME}
     attachable: true
-
 services:
   #+------------------------+
   ## GOBii Services
@@ -70,7 +69,6 @@ services:
         delay: 5s
         max_attempts: 3
         window: 180s
-
   #PROCESS
   gobii-process:
     image: ${GOBII_PROCESS_IMAGE}:${GOBII_PROCESS_IMAGE_TAG}
@@ -81,8 +79,6 @@ services:
         mode: ingress
     networks: 
       - ${EBS_DOCKER_NETWORK_NAME}
-    volumes:  
-      - ${GOBII_DATA_PATH}:/data
     depends_on:
       - "gobii-db"
     # stdin_open: true
