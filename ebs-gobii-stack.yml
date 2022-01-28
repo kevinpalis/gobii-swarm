@@ -77,6 +77,8 @@ services:
         published: 2222
         protocol: tcp
         mode: ingress
+    environment:
+      - db_pass=${GOBII_DB_PASSWORD}
     networks: 
       - ${EBS_DOCKER_NETWORK_NAME}
     volumes:  
