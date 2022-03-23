@@ -138,6 +138,42 @@ services:
       interval: 10s
       timeout: 30s
       retries: 3
+  gobii-api:
+    image: ${GOBII_API_IMAGE}:${GOBII_API_IMAGE_TAG}
+    ports:
+      - target: 8080
+        published: ${GOBII_API_PUBLISHED_PORT}
+        protocol: tcp
+        mode: ingress
+    environment:
+      - spring_profiles_active=${API_ACTIVE_PROFILE}
+      - spring_datasource_url=jdbc:postgresql://gobii-db:${GOBII_DB_TARGET_PORT}/${GOBII_DB_NAME}
+      - spring_datasource_username=${GOBII_DB_USER}
+      - spring_datasource_password=${GOBII_DB_PASSWORD}
+    networks: 
+      - ${EBS_DOCKER_NETWORK_NAME}
+    volumes:  
+      - ${GOBII_DATA_PATH}:/data
+      - ${SEARCH_CALLS_PATH}:/searchCalls
+    depends_on:
+      - "gobii-db"
+      - "gobii-process"
+    tty: true
+    deploy:
+      placement:
+        constraints:
+          - node.labels.type == gobii_api_node
+      mode: replicated
+      replicas: 1
+      endpoint_mode: vip
+      labels:
+        org.ebs.service.description: "This is the GOBii API Node"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 60s
+
 volumes:
   #when using local DB volumes - comment out if using mounted host volumes
   gobii_postgres_etc:
