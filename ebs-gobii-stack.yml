@@ -40,9 +40,9 @@ services:
       - os_user=${OS_USER}
       - os_pass=${OS_PASS}
       - os_group=${OS_GROUP}
-    networks: 
+    networks:
       - ${EBS_DOCKER_NETWORK_NAME}
-    volumes: 
+    volumes:
       - ${POSTGRES_ETC}:/etc/postgresql
       - ${POSTGRES_LOG}:/var/log/postgresql
       - ${POSTGRES_LIB}:/var/lib/postgresql
@@ -79,9 +79,9 @@ services:
         mode: ingress
     environment:
       - db_pass=${GOBII_DB_PASSWORD}
-    networks: 
+    networks:
       - ${EBS_DOCKER_NETWORK_NAME}
-    volumes:  
+    volumes:
       - ${GOBII_DATA_PATH}:/data
     depends_on:
       - "gobii-db"
@@ -113,7 +113,7 @@ services:
         published: 8081
         protocol: tcp
         mode: ingress
-    networks: 
+    networks:
       - ${EBS_DOCKER_NETWORK_NAME}
     environment: #Environment variables
       VAR1: "Sample Var"
@@ -150,9 +150,9 @@ services:
       - spring_datasource_url=jdbc:postgresql://gobii-db:${GOBII_DB_TARGET_PORT}/${GOBII_DB_NAME}
       - spring_datasource_username=${GOBII_DB_USER}
       - spring_datasource_password=${GOBII_DB_PASSWORD}
-    networks: 
+    networks:
       - ${EBS_DOCKER_NETWORK_NAME}
-    volumes:  
+    volumes:
       - ${GOBII_DATA_PATH}:/data
       - ${SEARCH_CALLS_PATH}:/searchCalls
     depends_on:
@@ -173,6 +173,11 @@ services:
         delay: 5s
         max_attempts: 3
         window: 60s
+    healthcheck:
+      test: "curl --fail --silent http://localhost:8080/actuator/health || exit 1"
+      interval: 25s
+      timeout: 3s
+      retries: 3
 
 volumes:
   #when using local DB volumes - comment out if using mounted host volumes
