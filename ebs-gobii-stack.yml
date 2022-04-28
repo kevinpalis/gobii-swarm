@@ -161,7 +161,7 @@ services:
     deploy:
       placement:
         constraints:
-          - node.labels.type == gobii_api_node
+          - node.labels.type == gobii_process_node
       mode: replicated
       replicas: 1
       endpoint_mode: vip
