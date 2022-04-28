@@ -154,7 +154,6 @@ services:
       - ${EBS_DOCKER_NETWORK_NAME}
     volumes:
       - ${GOBII_DATA_PATH}:/data
-      - ${SEARCH_CALLS_PATH}:/searchCalls
     depends_on:
       - "gobii-db"
       - "gobii-process"
