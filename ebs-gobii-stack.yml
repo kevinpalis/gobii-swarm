@@ -79,6 +79,7 @@ services:
         mode: ingress
     environment:
       - db_pass=${GOBII_DB_PASSWORD}
+      - mq_hostname=${MQ_HOST}
     networks:
       - ${EBS_DOCKER_NETWORK_NAME}
     volumes:
