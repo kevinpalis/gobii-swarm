@@ -86,6 +86,7 @@ services:
       - ${GOBII_DATA_PATH}:/data
     depends_on:
       - "gobii-db"
+      - "sm-rabbit"
     # stdin_open: true
     tty: true
     entrypoint: /usr/bin/env
@@ -107,6 +108,11 @@ services:
         delay: 5s
         max_attempts: 3
         window: 180s
+  # basic rabbit for testing in gobii dev
+  sm-rabbit:
+    image: rabbitmq:3
+    networks:
+      - ${EBS_DOCKER_NETWORK_NAME}
   gobii-timescope:
     image: ${GOBII_TIMESCOPE_IMAGE}:${GOBII_TIMESCOPE_IMAGE_TAG}
     ports:
